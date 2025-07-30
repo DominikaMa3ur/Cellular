@@ -1,2 +1,2 @@
 # Cellular
-soon...
+C++, Raylib, cellular automata
