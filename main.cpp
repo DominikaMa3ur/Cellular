@@ -58,12 +58,17 @@ int main ()
 {
     int cell[CELLS_X][CELLS_Y];
     fillWithZeros(cell);
+    const int updateTime = 1.25;
+    float sinceUpdate = 0;
 
 	InitWindow(704, 704, "Cellular");
 	
 	while (!WindowShouldClose())
 	{
-        if (IsKeyDown(KEY_SPACE)) update(cell);
+        float delta = GetFrameTime();
+        sinceUpdate += delta;
+        while (sinceUpdate >= updateTime) {update(cell); sinceUpdate -= updateTime;}
+        //if (IsKeyDown(KEY_SPACE)) update(cell); // to be improved
         BeginDrawing();
 
 		ClearBackground(BLACK);
