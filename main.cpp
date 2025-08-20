@@ -7,7 +7,7 @@ const int EDGE_NEIGHBOUR = INT_MAX;
 int CELLS_X = 128;
 int CELLS_Y = 128;
 
-Color COLORS[2] = {Color{146,236,68,255},Color{182,252,56,255}};
+Color COLORS[2] = {Color{128,128,128,255},Color{192,192,192,255}};
 
 struct NEIGHBOURS4 {
     int TOP;
@@ -43,7 +43,7 @@ void update(std::vector<std::vector<int>> &cell)
     std::vector<std::vector<int>> updated(CELLS_X, std::vector<int>(CELLS_Y,0));
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {updated[i][j] = cell[i][j];}}
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
-        if (countNeighbours(returnNeighbours(cell,i,j),1) < 1) {updated[i][j] = 1;}
+        if (countNeighbours(returnNeighbours(cell,i,j),1) < 2) {updated[i][j] = 1;}
         if (countNeighbours(returnNeighbours(cell,i,j),1) > 3) {updated[i][j] = 0;}
     }}
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {cell[i][j] = updated[i][j];}}
@@ -52,18 +52,37 @@ void update(std::vector<std::vector<int>> &cell)
 int main ()
 {
     std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
-
+    
     const float updateTime = 1.25;
+    float speed = 1.0;
     float sinceUpdate = 0;
     bool updateKeyReleased = true;
+    bool mouseReleased = true;
+    
+    Rectangle stopButton{0,640,160,32};
+    Rectangle startButton{160,640,160,32};
+    Rectangle speedButton{320,640,160,32};
+    Rectangle restartButton{480,640,160,32};
 
-	InitWindow(640, 640, "Cellular");
+	InitWindow(640, 672, "Cellular");
     int square = 640/std::max(CELLS_X,CELLS_Y);
 	
 	while (!WindowShouldClose())
 	{
         float delta = GetFrameTime();
-        sinceUpdate += delta;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseReleased) {
+            if (CheckCollisionPointRec(GetMousePosition(), startButton))
+            {speed = 1.0; mouseReleased = false;}
+            else if (CheckCollisionPointRec(GetMousePosition(), stopButton))
+            {speed = 0.0; mouseReleased = false;}
+            else if (CheckCollisionPointRec(GetMousePosition(), speedButton))
+            {speed = 2.0; mouseReleased = false;}
+            else if (CheckCollisionPointRec(GetMousePosition(), restartButton))
+            {speed = 1.0; mouseReleased = false;
+            cell = std::vector<std::vector<int>>(CELLS_X, std::vector<int>(CELLS_Y,0));}
+        }
+        if (not IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {mouseReleased = true;}
+        sinceUpdate += delta*speed;
         while (sinceUpdate >= updateTime) {update(cell); sinceUpdate -= updateTime;}
         if (IsKeyDown(KEY_SPACE) && updateKeyReleased) {update(cell); updateKeyReleased = false;}
         else if (!IsKeyDown(KEY_SPACE)) {updateKeyReleased = true;}
@@ -72,8 +91,11 @@ int main ()
 		ClearBackground(BLACK);
 		for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
         if (cell[i][j] == 0) {DrawRectangle(square*i, square*j, square, square, COLORS[0]);}
-        else if (cell[i][j] == 1) {DrawRectangle(square*i, square*j, square, square, COLORS[1]);}
-        }}
+        else if (cell[i][j] == 1) {DrawRectangle(square*i, square*j, square, square, COLORS[1]);}}}
+        DrawRectangle(stopButton.x,startButton.y,startButton.width,startButton.height,WHITE);
+        DrawRectangle(startButton.x,restartButton.y,restartButton.width,restartButton.height,LIGHTGRAY);
+        DrawRectangle(speedButton.x,startButton.y,startButton.width,startButton.height,GRAY);
+        DrawRectangle(restartButton.x,restartButton.y,restartButton.width,restartButton.height,BLACK);
 		
 		EndDrawing();
 	}
