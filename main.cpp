@@ -1,6 +1,8 @@
 #include "raylib.h"
 #include <climits>
 #include <vector>
+#include <fstream>
+#include <sstream>
 
 const int EDGE_NEIGHBOUR = INT_MAX;
 
@@ -15,6 +17,8 @@ struct NEIGHBOURS4 {
     int RIGHT;
     int BOTTOM;
 };
+
+struct RULE2 {int a; int b;};
 
 int countNeighbours(NEIGHBOURS4 neighbours, int value) {
     int count = 0;
@@ -38,13 +42,22 @@ NEIGHBOURS4 returnNeighbours(std::vector<std::vector<int>> &cell, int x, int y) 
     return returned;
 }
 
-void update(std::vector<std::vector<int>> &cell)
+int returnNeighbours4Num(NEIGHBOURS4 n, int value=1) {
+    int num = 0;
+    if (n.TOP == value) {num += 1;}
+    if (n.RIGHT == value) {num += 2;}
+    if (n.BOTTOM == value) {num += 4;}
+    if (n.LEFT == value) {num += 8;}
+    return num;
+}
+
+void update(std::vector<std::vector<int>> &cell, std::vector<RULE2> rules)
 {
     std::vector<std::vector<int>> updated(CELLS_X, std::vector<int>(CELLS_Y,0));
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {updated[i][j] = cell[i][j];}}
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
-        if (countNeighbours(returnNeighbours(cell,i,j),1) < 2) {updated[i][j] = 1;}
-        if (countNeighbours(returnNeighbours(cell,i,j),1) > 3) {updated[i][j] = 0;}
+        for(std::vector<RULE2>::iterator it = rules.begin(); it != rules.end(); it++)
+            {if (returnNeighbours4Num(returnNeighbours(cell,i,j)) == (*it).a) {updated[i][j] = (*it).b;}}
     }}
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {cell[i][j] = updated[i][j];}}
 }
@@ -52,12 +65,13 @@ void update(std::vector<std::vector<int>> &cell)
 int main ()
 {
     std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
-    
+    std::vector<RULE2> rules;
     const float updateTime = 1.25;
-    float speed = 1.0;
+    float speed = 0.75;
     float sinceUpdate = 0;
     bool updateKeyReleased = true;
     bool mouseReleased = true;
+    bool rulesFound = true;
     
     Rectangle stopButton{0,640,160,32};
     Rectangle startButton{160,640,160,32};
@@ -66,7 +80,18 @@ int main ()
 
 	InitWindow(640, 672, "Cellular");
     int square = 640/std::max(CELLS_X,CELLS_Y);
-	
+    std::ifstream file("rules.txt");
+    std::string line;
+    if (file.is_open()) {
+        while (std::getline(file,line)) {
+            std::stringstream stream(line);
+            RULE2 i; stream >> i.a >> i.b;
+            rules.push_back(i);
+        }
+    }
+    else {rulesFound = false;}
+    file.close();
+
 	while (!WindowShouldClose())
 	{
         float delta = GetFrameTime();
@@ -83,8 +108,8 @@ int main ()
         }
         if (not IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {mouseReleased = true;}
         sinceUpdate += delta*speed;
-        while (sinceUpdate >= updateTime) {update(cell); sinceUpdate -= updateTime;}
-        if (IsKeyDown(KEY_SPACE) && updateKeyReleased) {update(cell); updateKeyReleased = false;}
+        while (sinceUpdate >= updateTime) {update(cell, rules); sinceUpdate -= updateTime;}
+        if (IsKeyDown(KEY_SPACE) && updateKeyReleased) {update(cell, rules); updateKeyReleased = false;}
         else if (!IsKeyDown(KEY_SPACE)) {updateKeyReleased = true;}
         BeginDrawing();
 
@@ -96,10 +121,9 @@ int main ()
         DrawRectangle(startButton.x,restartButton.y,restartButton.width,restartButton.height,LIGHTGRAY);
         DrawRectangle(speedButton.x,startButton.y,startButton.width,startButton.height,GRAY);
         DrawRectangle(restartButton.x,restartButton.y,restartButton.width,restartButton.height,BLACK);
-		
+		if (!rulesFound) {DrawText("[!] Rules not found! make sure the file is named rules.txt", 16, 16, 20, BLACK);}
 		EndDrawing();
 	}
-
 	CloseWindow();
 	return 0;
 }
