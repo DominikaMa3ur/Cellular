@@ -4,12 +4,54 @@
 #include <fstream>
 #include <sstream>
 
+class Button {
+    private:
+        Rectangle rect;
+        const char* text;
+    public:
+        Button(int x, int y, int w, int h, const char* buttontext = "Button")
+            {rect.x = x; rect.y = y; rect.width = w; rect.height = h; text = buttontext;}
+        Rectangle get_rect() {return rect;}
+        bool isInside() {return CheckCollisionPointRec(GetMousePosition(), rect);}
+        bool isPressed() {return (isInside() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT));}
+        void draw() {
+            if (isInside() && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+                {
+                    DrawRectangleRounded(rect,0.1,1,GREEN);
+                    DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
+                }
+            else if (isInside())
+                {
+                    DrawRectangleRoundedLinesEx(rect,0.1,1,3,WHITE);                    
+                    DrawRectangleRounded(rect,0.1,1,LIGHTGRAY);
+                    DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
+                }
+            else {
+                    DrawRectangleRounded(rect,0.1,1,WHITE);
+                    DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
+                    DrawText(text, rect.x + rect.width/2 - MeasureText(text, 20)/2, rect.y, 20, BLACK);
+                }
+        }
+    
+};
+
 const int EDGE_NEIGHBOUR = INT_MAX;
 
 int CELLS_X = 128;
 int CELLS_Y = 128;
 
 Color COLORS[2] = {Color{128,128,128,255},Color{192,192,192,255}};
+
+struct NEIGHBOURS8 {
+    int LT;
+    int T;
+    int RT;
+    int R;
+    int RB;
+    int B;
+    int LB;
+    int L;
+};
 
 struct NEIGHBOURS4 {
     int TOP;
@@ -29,6 +71,19 @@ int countNeighbours(NEIGHBOURS4 neighbours, int value) {
     return count;
 }
 
+int countNeighbours(NEIGHBOURS8 neighbours, int value) {
+    int count = 0;
+    if (neighbours.LT == value) {count++;}
+    if (neighbours.T == value) {count++;}
+    if (neighbours.RT == value) {count++;}
+    if (neighbours.R == value) {count++;}
+    if (neighbours.RB == value) {count++;}
+    if (neighbours.B == value) {count++;}
+    if (neighbours.LB == value) {count++;}
+    if (neighbours.L == value) {count++;}
+    return count;
+}
+
 NEIGHBOURS4 returnNeighbours(std::vector<std::vector<int>> &cell, int x, int y) {
     NEIGHBOURS4 returned;
     if (y <= 0) returned.TOP = EDGE_NEIGHBOUR;
@@ -42,7 +97,28 @@ NEIGHBOURS4 returnNeighbours(std::vector<std::vector<int>> &cell, int x, int y) 
     return returned;
 }
 
-int returnNeighbours4Num(NEIGHBOURS4 n, int value=1) {
+NEIGHBOURS8 returnNeighbours8(std::vector<std::vector<int>> &cell, int x, int y) {
+    NEIGHBOURS8 returned;
+    if (y <= 0) returned.T = EDGE_NEIGHBOUR;
+    else returned.T = cell[x][y-1];
+    if (y >= CELLS_Y-1) returned.B = EDGE_NEIGHBOUR;
+    else returned.B = cell[x][y+1];
+    if (x <= 0) returned.L = EDGE_NEIGHBOUR;
+    else returned.L = cell[x-1][y];
+    if (x >= CELLS_X-1) returned.R = EDGE_NEIGHBOUR;
+    else returned.R = cell[x+1][y];
+    if (y <= 0 || x <= 0) returned.LT = EDGE_NEIGHBOUR;
+    else returned.LT = cell[x-1][y-1];
+    if (y >= CELLS_Y-1 || x >= CELLS_X-1) returned.RB = EDGE_NEIGHBOUR;
+    else returned.RB = cell[x+1][y+1];
+    if (x <= 0 || y >= CELLS_Y-1) returned.LB = EDGE_NEIGHBOUR;
+    else returned.LB = cell[x-1][y+1];
+    if (x >= CELLS_X-1 || y <= 0) returned.RT = EDGE_NEIGHBOUR;
+    else returned.RT = cell[x+1][y-1];
+    return returned;
+}
+
+int returnNeighboursNum(NEIGHBOURS4 n, int value=1) {
     int num = 0;
     if (n.TOP == value) {num += 1;}
     if (n.RIGHT == value) {num += 2;}
@@ -51,35 +127,35 @@ int returnNeighbours4Num(NEIGHBOURS4 n, int value=1) {
     return num;
 }
 
+int returnNeighboursNum(NEIGHBOURS8 n, int value=1) {
+    int num = 0;
+    if (n.T == value) {num += 1;}
+    if (n.RT == value) {num += 2;}
+    if (n.R == value) {num += 4;}
+    if (n.RB == value) {num += 8;}
+    if (n.B == value) {num += 16;}
+    if (n.LB == value) {num += 32;}
+    if (n.L == value) {num += 64;}
+    if (n.LT == value) {num += 128;}
+    return num;
+}
+
 void update(std::vector<std::vector<int>> &cell, std::vector<RULE2> rules)
 {
     std::vector<std::vector<int>> updated(CELLS_X, std::vector<int>(CELLS_Y,0));
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {updated[i][j] = cell[i][j];}}
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
+        int cellnum = returnNeighboursNum(returnNeighbours8(cell,i,j));
         for(std::vector<RULE2>::iterator it = rules.begin(); it != rules.end(); it++)
-            {if (returnNeighbours4Num(returnNeighbours(cell,i,j)) == (*it).a) {updated[i][j] = (*it).b;}}
+            //{if (cellnum == (*it).a) {updated[i][j] = (*it).b;}} // both options will be available later
+            {if (countNeighbours(returnNeighbours8(cell,i,j),1) == (*it).a) {updated[i][j] = (*it).b;}}
     }}
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {cell[i][j] = updated[i][j];}}
 }
 
-int main ()
+std::vector<RULE2> readRules(bool &rulesFound)
 {
-    std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
-    std::vector<RULE2> rules;
-    const float updateTime = 1.25;
-    float speed = 0.75;
-    float sinceUpdate = 0;
-    bool updateKeyReleased = true;
-    bool mouseReleased = true;
-    bool rulesFound = true;
-    
-    Rectangle stopButton{0,640,160,32};
-    Rectangle startButton{160,640,160,32};
-    Rectangle speedButton{320,640,160,32};
-    Rectangle restartButton{480,640,160,32};
-
-	InitWindow(640, 672, "Cellular");
-    int square = 640/std::max(CELLS_X,CELLS_Y);
+    std::vector<RULE2> rules;    
     std::ifstream file("rules.txt");
     std::string line;
     if (file.is_open()) {
@@ -91,18 +167,44 @@ int main ()
     }
     else {rulesFound = false;}
     file.close();
+    return rules;
+}
+
+int main ()
+{
+    std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
+    const float updateTime = 1.25;
+    const int toolsHeight = 32;
+    float speed = 0.75;
+    float sinceUpdate = 0;
+    bool updateKeyReleased = true;
+    bool mouseReleased = true;
+    bool rulesFound = true;
+    
+    Button stopButton(16,0,128,32, "x0.0");
+    Button startButton(176,0,128,32, "x1.0");
+    Button speedButton(336,0,128,32, "x2.0");
+    Button restartButton(496,0,128,32, "Restart");
+    
+    int pressedButton = -1;
+
+	InitWindow(640, 672, "Cellular");
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetTargetFPS(60);
+
+    std::vector<RULE2> rules = readRules(rulesFound);
 
 	while (!WindowShouldClose())
 	{
         float delta = GetFrameTime();
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseReleased) {
-            if (CheckCollisionPointRec(GetMousePosition(), startButton))
+            if (startButton.isPressed())
             {speed = 1.0; mouseReleased = false;}
-            else if (CheckCollisionPointRec(GetMousePosition(), stopButton))
+            else if (stopButton.isPressed())
             {speed = 0.0; mouseReleased = false;}
-            else if (CheckCollisionPointRec(GetMousePosition(), speedButton))
+            else if (speedButton.isPressed())
             {speed = 2.0; mouseReleased = false;}
-            else if (CheckCollisionPointRec(GetMousePosition(), restartButton))
+            else if (restartButton.isPressed())
             {speed = 1.0; mouseReleased = false;
             cell = std::vector<std::vector<int>>(CELLS_X, std::vector<int>(CELLS_Y,0));}
         }
@@ -111,17 +213,21 @@ int main ()
         while (sinceUpdate >= updateTime) {update(cell, rules); sinceUpdate -= updateTime;}
         if (IsKeyDown(KEY_SPACE) && updateKeyReleased) {update(cell, rules); updateKeyReleased = false;}
         else if (!IsKeyDown(KEY_SPACE)) {updateKeyReleased = true;}
-        BeginDrawing();
 
+        // window scaling, work in progress
+        int square = std::min(GetScreenWidth(),GetScreenHeight()-toolsHeight)/std::max(CELLS_X,CELLS_Y);
+        int margin = (GetScreenWidth()-square*CELLS_X)/2;
+
+        BeginDrawing();
 		ClearBackground(BLACK);
 		for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
-        if (cell[i][j] == 0) {DrawRectangle(square*i, square*j, square, square, COLORS[0]);}
-        else if (cell[i][j] == 1) {DrawRectangle(square*i, square*j, square, square, COLORS[1]);}}}
-        DrawRectangle(stopButton.x,startButton.y,startButton.width,startButton.height,WHITE);
-        DrawRectangle(startButton.x,restartButton.y,restartButton.width,restartButton.height,LIGHTGRAY);
-        DrawRectangle(speedButton.x,startButton.y,startButton.width,startButton.height,GRAY);
-        DrawRectangle(restartButton.x,restartButton.y,restartButton.width,restartButton.height,BLACK);
-		if (!rulesFound) {DrawText("[!] Rules not found! make sure the file is named rules.txt", 16, 16, 20, BLACK);}
+        if (cell[i][j] == 0) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[0]);}
+        else if (cell[i][j] == 1) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[1]);}}}
+        stopButton.draw();
+        startButton.draw();
+        speedButton.draw();
+        restartButton.draw();
+		if (!rulesFound) {DrawText("[!] Rules not found! make sure the file is named rules.txt", 16, 48, 20, BLACK);}
 		EndDrawing();
 	}
 	CloseWindow();
