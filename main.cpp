@@ -3,11 +3,16 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 class Button {
     private:
         Rectangle rect;
         const char* text;
+        void drawButtonText()
+        {
+            DrawText(text, rect.x + rect.width/2 - MeasureText(text, 20)/2, rect.y, 20, BLACK);
+        }
     public:
         Button(int x, int y, int w, int h, const char* buttontext = "Button")
             {rect.x = x; rect.y = y; rect.width = w; rect.height = h; text = buttontext;}
@@ -19,17 +24,19 @@ class Button {
                 {
                     DrawRectangleRounded(rect,0.1,1,GREEN);
                     DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
+                    drawButtonText();
                 }
             else if (isInside())
                 {
                     DrawRectangleRoundedLinesEx(rect,0.1,1,3,WHITE);                    
                     DrawRectangleRounded(rect,0.1,1,LIGHTGRAY);
                     DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
+                    drawButtonText();
                 }
             else {
                     DrawRectangleRounded(rect,0.1,1,WHITE);
                     DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
-                    DrawText(text, rect.x + rect.width/2 - MeasureText(text, 20)/2, rect.y, 20, BLACK);
+                    drawButtonText();
                 }
         }
     
@@ -37,8 +44,8 @@ class Button {
 
 const int EDGE_NEIGHBOUR = INT_MAX;
 
-int CELLS_X = 128;
-int CELLS_Y = 128;
+int CELLS_X = 64;
+int CELLS_Y = 64;
 
 Color COLORS[2] = {Color{128,128,128,255},Color{192,192,192,255}};
 
@@ -140,20 +147,25 @@ int returnNeighboursNum(NEIGHBOURS8 n, int value=1) {
     return num;
 }
 
-void update(std::vector<std::vector<int>> &cell, std::vector<RULE2> rules)
+void update(std::vector<std::vector<int>> &cell, std::vector<RULE2> rules, int neighboursMode)
 {
     std::vector<std::vector<int>> updated(CELLS_X, std::vector<int>(CELLS_Y,0));
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {updated[i][j] = cell[i][j];}}
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
         int cellnum = returnNeighboursNum(returnNeighbours8(cell,i,j));
-        for(std::vector<RULE2>::iterator it = rules.begin(); it != rules.end(); it++)
+        for(std::vector<RULE2>::iterator it = rules.begin(); it != rules.end(); it++) {
+            if (neighboursMode == 8) {
             //{if (cellnum == (*it).a) {updated[i][j] = (*it).b;}} // both options will be available later
-            {if (countNeighbours(returnNeighbours8(cell,i,j),1) == (*it).a) {updated[i][j] = (*it).b;}}
+            if (countNeighbours(returnNeighbours8(cell,i,j),1) == (*it).a) {updated[i][j] = (*it).b;}}
+            else if (neighboursMode == 4) {
+                if (countNeighbours(returnNeighbours(cell,i,j),1) == (*it).a) {updated[i][j] = (*it).b;}
+            }
+        }
     }}
     for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {cell[i][j] = updated[i][j];}}
 }
 
-std::vector<RULE2> readRules(bool &rulesFound)
+std::vector<RULE2> readRules(bool &rulesFound, int &neighbours)
 {
     std::vector<RULE2> rules;    
     std::ifstream file("rules.txt");
@@ -161,8 +173,19 @@ std::vector<RULE2> readRules(bool &rulesFound)
     if (file.is_open()) {
         while (std::getline(file,line)) {
             std::stringstream stream(line);
-            RULE2 i; stream >> i.a >> i.b;
-            rules.push_back(i);
+            RULE2 i;
+            if (stream >> i.a)
+            {
+                if (stream >> i.b)
+                    {rules.push_back(i);}
+            }
+            else {
+                if (line.find("mode") != std::string::npos)
+                {
+                    if (line.find("8") != std::string::npos) {neighbours = 8;}                    
+                    else if (line.find("4") != std::string::npos) {neighbours = 4;}
+                }
+            }
         }
     }
     else {rulesFound = false;}
@@ -171,47 +194,70 @@ std::vector<RULE2> readRules(bool &rulesFound)
 }
 
 int main ()
-{
+{    
     std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
     const float updateTime = 1.25;
     const int toolsHeight = 32;
-    float speed = 0.75;
+    float speed = 1.0;
     float sinceUpdate = 0;
     bool updateKeyReleased = true;
     bool mouseReleased = true;
     bool rulesFound = true;
+    int neighboursMode = 8;
+    bool mode_auto = false;
     
-    Button stopButton(16,0,128,32, "x0.0");
-    Button startButton(176,0,128,32, "x1.0");
-    Button speedButton(336,0,128,32, "x2.0");
-    Button restartButton(496,0,128,32, "Restart");
+    Button tools_auto[] = {
+    Button(16,0,128,32, "manual"),
+    Button(176,0,128,32, "slower"),
+    Button(336,0,128,32, "faster"),
+    Button(496,0,128,32, "restart"),
+    };
+    
+    Button tools[] = {
+    Button(16,0,128,32, "auto"),
+    Button(176,0,128,32, "+1"),
+    Button(336,0,128,32, "+10"),
+    Button(496,0,128,32, "restart"),
+    };
     
     int pressedButton = -1;
 
 	InitWindow(640, 672, "Cellular");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetWindowMinSize(640,64);
     SetTargetFPS(60);
 
-    std::vector<RULE2> rules = readRules(rulesFound);
+    cell[32][33] = 1;
+    cell[32][32] = 1;
+    cell[32][34] = 1;
+
+    std::vector<RULE2> rules = readRules(rulesFound, neighboursMode);
 
 	while (!WindowShouldClose())
 	{
         float delta = GetFrameTime();
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseReleased) {
-            if (startButton.isPressed())
-            {speed = 1.0; mouseReleased = false;}
-            else if (stopButton.isPressed())
-            {speed = 0.0; mouseReleased = false;}
-            else if (speedButton.isPressed())
-            {speed = 2.0; mouseReleased = false;}
-            else if (restartButton.isPressed())
-            {speed = 1.0; mouseReleased = false;
-            cell = std::vector<std::vector<int>>(CELLS_X, std::vector<int>(CELLS_Y,0));}
+            if (tools[0].isPressed()) {mode_auto = !mode_auto; mouseReleased = false;}
+            else if (tools[1].isPressed())
+            {
+                if (mode_auto) {speed = std::max(0.5f, speed/2); mouseReleased = false;}
+                else {update(cell, rules, neighboursMode); mouseReleased = false;}
+            }
+            else if (tools[2].isPressed())
+            {
+                if (mode_auto) {speed = std::min(16.0f, speed*2); mouseReleased = false;}
+                else {for (int i = 0; i < 10; i++) {update(cell, rules, neighboursMode); mouseReleased = false;}}
+            }
+            else if (tools[3].isPressed())
+            {
+                speed = 1.0; mouseReleased = false;
+                cell = std::vector<std::vector<int>>(CELLS_X, std::vector<int>(CELLS_Y,0));
+            }
         }
         if (not IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {mouseReleased = true;}
-        sinceUpdate += delta*speed;
-        while (sinceUpdate >= updateTime) {update(cell, rules); sinceUpdate -= updateTime;}
-        if (IsKeyDown(KEY_SPACE) && updateKeyReleased) {update(cell, rules); updateKeyReleased = false;}
+        if (mode_auto) {sinceUpdate += delta*speed;}
+        while (sinceUpdate >= updateTime) {update(cell, rules, neighboursMode); sinceUpdate -= updateTime;}
+        if (IsKeyDown(KEY_SPACE) && updateKeyReleased) {update(cell, rules, neighboursMode); updateKeyReleased = false;}
         else if (!IsKeyDown(KEY_SPACE)) {updateKeyReleased = true;}
 
         // window scaling, work in progress
@@ -223,10 +269,8 @@ int main ()
 		for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
         if (cell[i][j] == 0) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[0]);}
         else if (cell[i][j] == 1) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[1]);}}}
-        stopButton.draw();
-        startButton.draw();
-        speedButton.draw();
-        restartButton.draw();
+        if (mode_auto) {for (int i = 0; i < 4; i++) {tools_auto[i].draw();}}
+        else {for (int i = 0; i < 4; i++) {tools[i].draw();}}
 		if (!rulesFound) {DrawText("[!] Rules not found! make sure the file is named rules.txt", 16, 48, 20, BLACK);}
 		EndDrawing();
 	}
