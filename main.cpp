@@ -208,26 +208,28 @@ int main ()
     bool mode_auto = false;
     bool mode_more_tools = false;
     
-    Button tools_auto[] = {
+    std::vector<Button> tools_auto = {
     Button(16,0,128,32, "manual"),
     Button(176,0,128,32, "slower"),
     Button(336,0,128,32, "faster"),
     Button(496,0,128,32, "more"),
     };
     
-    Button tools[] = {
+    std::vector<Button> tools = {
     Button(16,0,128,32, "auto"),
     Button(176,0,128,32, "+1"),
     Button(336,0,128,32, "+10"),
     Button(496,0,128,32, "more"),
     };
     
-    Button more_tools[] = {
+    std::vector<Button> more_tools = {
     Button(16,0,128,32, "reload rules"),
     Button(176,0,128,32, "soon"),
     Button(336,0,128,32, "soon"),
     Button(496,0,128,32, "back"),
     };
+
+    std::vector<Button> *active_tools = &tools;
     
     int pressedButton = -1;
 
@@ -244,23 +246,25 @@ int main ()
 
 	while (!WindowShouldClose())
 	{
+        if (mode_more_tools) active_tools = &more_tools;
+        else if (mode_auto) active_tools = &tools_auto;
         float delta = GetFrameTime();
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseReleased) {
-            if (tools[0].isPressed()) {
+            if ((*active_tools)[0].isPressed()) {
             if (mode_more_tools) {rules = readRules(rulesFound, neighboursMode); mouseReleased = false;}
             else {mode_auto = !mode_auto; mouseReleased = false;}
             }
-            else if (tools[1].isPressed())
+            else if ((*active_tools)[1].isPressed())
             {
                 if (mode_auto) {speed = std::max(0.5f, speed/2); mouseReleased = false;}
                 else {update(cell, rules, neighboursMode); mouseReleased = false;}
             }
-            else if (tools[2].isPressed())
+            else if ((*active_tools)[2].isPressed())
             {
                 if (mode_auto) {speed = std::min(16.0f, speed*2); mouseReleased = false;}
                 else {for (int i = 0; i < 10; i++) {update(cell, rules, neighboursMode); mouseReleased = false;}}
             }
-            else if (tools[3].isPressed())
+            else if ((*active_tools)[3].isPressed())
             {
                 mode_more_tools = !mode_more_tools; mouseReleased = false;
             }
