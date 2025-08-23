@@ -17,6 +17,7 @@ class Button {
         Button(int x, int y, int w, int h, const char* buttontext = "Button")
             {rect.x = x; rect.y = y; rect.width = w; rect.height = h; text = buttontext;}
         Rectangle get_rect() {return rect;}
+        void set_rect(Rectangle new_rect) {rect = new_rect;}
         bool isInside() {return CheckCollisionPointRec(GetMousePosition(), rect);}
         bool isPressed() {return (isInside() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT));}
         void draw() {
@@ -205,19 +206,27 @@ int main ()
     bool rulesFound = true;
     int neighboursMode = 8;
     bool mode_auto = false;
+    bool mode_more_tools = false;
     
     Button tools_auto[] = {
     Button(16,0,128,32, "manual"),
     Button(176,0,128,32, "slower"),
     Button(336,0,128,32, "faster"),
-    Button(496,0,128,32, "restart"),
+    Button(496,0,128,32, "more"),
     };
     
     Button tools[] = {
     Button(16,0,128,32, "auto"),
     Button(176,0,128,32, "+1"),
     Button(336,0,128,32, "+10"),
-    Button(496,0,128,32, "restart"),
+    Button(496,0,128,32, "more"),
+    };
+    
+    Button more_tools[] = {
+    Button(16,0,128,32, "reload rules"),
+    Button(176,0,128,32, "soon"),
+    Button(336,0,128,32, "soon"),
+    Button(496,0,128,32, "back"),
     };
     
     int pressedButton = -1;
@@ -237,7 +246,10 @@ int main ()
 	{
         float delta = GetFrameTime();
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseReleased) {
-            if (tools[0].isPressed()) {mode_auto = !mode_auto; mouseReleased = false;}
+            if (tools[0].isPressed()) {
+            if (mode_more_tools) {rules = readRules(rulesFound, neighboursMode); mouseReleased = false;}
+            else {mode_auto = !mode_auto; mouseReleased = false;}
+            }
             else if (tools[1].isPressed())
             {
                 if (mode_auto) {speed = std::max(0.5f, speed/2); mouseReleased = false;}
@@ -250,8 +262,7 @@ int main ()
             }
             else if (tools[3].isPressed())
             {
-                speed = 1.0; mouseReleased = false;
-                cell = std::vector<std::vector<int>>(CELLS_X, std::vector<int>(CELLS_Y,0));
+                mode_more_tools = !mode_more_tools; mouseReleased = false;
             }
         }
         if (not IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {mouseReleased = true;}
@@ -269,7 +280,8 @@ int main ()
 		for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
         if (cell[i][j] == 0) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[0]);}
         else if (cell[i][j] == 1) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[1]);}}}
-        if (mode_auto) {for (int i = 0; i < 4; i++) {tools_auto[i].draw();}}
+        if (mode_more_tools) {for (int i = 0; i < 4; i++) {more_tools[i].draw();}}
+        else if (mode_auto) {for (int i = 0; i < 4; i++) {tools_auto[i].draw();}}
         else {for (int i = 0; i < 4; i++) {tools[i].draw();}}
 		if (!rulesFound) {DrawText("[!] Rules not found! make sure the file is named rules.txt", 16, 48, 20, BLACK);}
 		EndDrawing();
