@@ -4,11 +4,13 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <iostream>
 
 class Button {
     private:
         Rectangle rect;
         const char* text;
+        bool isSelected = false;
         void drawButtonText()
         {
             DrawText(text, rect.x + rect.width/2 - MeasureText(text, 20)/2, rect.y, 20, BLACK);
@@ -20,8 +22,9 @@ class Button {
         void set_rect(Rectangle new_rect) {rect = new_rect;}
         bool isInside() {return CheckCollisionPointRec(GetMousePosition(), rect);}
         bool isPressed() {return (isInside() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT));}
+        void select(bool selected) {isSelected = selected;}
         void draw() {
-            if (isInside() && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+            if ((isInside() && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) || isSelected)
                 {
                     DrawRectangleRounded(rect,0.1,1,GREEN);
                     DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
@@ -195,13 +198,12 @@ std::vector<RULE2> readRules(bool &rulesFound, int &neighbours)
 }
 
 int main ()
-{    
+{
     std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
     const float updateTime = 1.25;
     const int toolsHeight = 32;
     float speed = 1.0;
     float sinceUpdate = 0;
-    bool updateKeyReleased = true;
     bool mouseReleased = true;
     bool rulesFound = true;
     int neighboursMode = 8;
@@ -231,7 +233,7 @@ int main ()
 
     std::vector<Button> *active_tools = &tools;
     
-    int pressedButton = -1;
+    int selectedButton = 0;
 
 	InitWindow(640, 672, "Cellular");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
@@ -246,34 +248,43 @@ int main ()
 
 	while (!WindowShouldClose())
 	{
+        int buttonPressed = -1;
         if (mode_more_tools) active_tools = &more_tools;
         else if (mode_auto) active_tools = &tools_auto;
+        else active_tools = &tools;
+        selectedButton = std::min(selectedButton,int((*active_tools).size())-1);
         float delta = GetFrameTime();
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mouseReleased) {
-            if ((*active_tools)[0].isPressed()) {
-            if (mode_more_tools) {rules = readRules(rulesFound, neighboursMode); mouseReleased = false;}
-            else {mode_auto = !mode_auto; mouseReleased = false;}
-            }
-            else if ((*active_tools)[1].isPressed())
+        for (int i = 0; i < 4; i++) {
+            if ((*active_tools)[i].isPressed())
             {
-                if (mode_auto) {speed = std::max(0.5f, speed/2); mouseReleased = false;}
-                else {update(cell, rules, neighboursMode); mouseReleased = false;}
-            }
-            else if ((*active_tools)[2].isPressed())
-            {
-                if (mode_auto) {speed = std::min(16.0f, speed*2); mouseReleased = false;}
-                else {for (int i = 0; i < 10; i++) {update(cell, rules, neighboursMode); mouseReleased = false;}}
-            }
-            else if ((*active_tools)[3].isPressed())
-            {
-                mode_more_tools = !mode_more_tools; mouseReleased = false;
+                buttonPressed = i;
+                break;
             }
         }
         if (not IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {mouseReleased = true;}
         if (mode_auto) {sinceUpdate += delta*speed;}
         while (sinceUpdate >= updateTime) {update(cell, rules, neighboursMode); sinceUpdate -= updateTime;}
-        if (IsKeyDown(KEY_SPACE) && updateKeyReleased) {update(cell, rules, neighboursMode); updateKeyReleased = false;}
-        else if (!IsKeyDown(KEY_SPACE)) {updateKeyReleased = true;}
+
+        if (IsKeyPressed(KEY_LEFT)) {selectedButton = std::max(selectedButton-1,0);}
+        else if (IsKeyPressed(KEY_RIGHT)) {selectedButton = std::min(selectedButton+1,int((*active_tools).size())-1);}
+        for (int i = 0; i < 4; i++) {(*active_tools)[i].select(false);}
+        (*active_tools)[selectedButton].select(true);
+
+        if (IsKeyPressed(KEY_ENTER)) {buttonPressed = selectedButton;}
+        
+        if (buttonPressed == 0) {
+            if (mode_more_tools) {rules = readRules(rulesFound, neighboursMode); mouseReleased = false;}
+            else {mode_auto = !mode_auto; mouseReleased = false;}
+        }
+        else if (buttonPressed == 1) {
+            if (mode_auto) {speed = std::max(0.5f, speed/2); mouseReleased = false;}
+            else {update(cell, rules, neighboursMode); mouseReleased = false;}
+        }
+        else if (buttonPressed == 2) {
+            if (mode_auto) {speed = std::min(16.0f, speed*2); mouseReleased = false;}
+            else {for (int i = 0; i < 10; i++) {update(cell, rules, neighboursMode); mouseReleased = false;}}
+        }
+        else if (buttonPressed == 3) {mode_more_tools = !mode_more_tools;}
 
         // window scaling, work in progress
         int square = std::min(GetScreenWidth(),GetScreenHeight()-toolsHeight)/std::max(CELLS_X,CELLS_Y);
@@ -281,12 +292,13 @@ int main ()
 
         BeginDrawing();
 		ClearBackground(BLACK);
-		for (int i = 0; i < CELLS_X; i++) {for (int j = 0; j < CELLS_Y; j++) {
-        if (cell[i][j] == 0) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[0]);}
-        else if (cell[i][j] == 1) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[1]);}}}
-        if (mode_more_tools) {for (int i = 0; i < 4; i++) {more_tools[i].draw();}}
-        else if (mode_auto) {for (int i = 0; i < 4; i++) {tools_auto[i].draw();}}
-        else {for (int i = 0; i < 4; i++) {tools[i].draw();}}
+		for (int i = 0; i < CELLS_X; i++) {
+            for (int j = 0; j < CELLS_Y; j++) {
+                if (cell[i][j] == 0) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[0]);}
+                else if (cell[i][j] == 1) {DrawRectangle(margin+square*i, square*j+toolsHeight, square, square, COLORS[1]);}
+            }
+        }
+        for (int i = 0; i < 4; i++) {(*active_tools)[i].draw();}
 		if (!rulesFound) {DrawText("[!] Rules not found! make sure the file is named rules.txt", 16, 48, 20, BLACK);}
 		EndDrawing();
 	}
