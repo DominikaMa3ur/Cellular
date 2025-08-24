@@ -4,7 +4,6 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <iostream>
 
 class Button {
     private:
@@ -204,7 +203,6 @@ int main ()
     const int toolsHeight = 32;
     float speed = 1.0;
     float sinceUpdate = 0;
-    bool mouseReleased = true;
     bool rulesFound = true;
     int neighboursMode = 8;
     bool mode_auto = false;
@@ -261,7 +259,6 @@ int main ()
                 break;
             }
         }
-        if (not IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {mouseReleased = true;}
         if (mode_auto) {sinceUpdate += delta*speed;}
         while (sinceUpdate >= updateTime) {update(cell, rules, neighboursMode); sinceUpdate -= updateTime;}
 
@@ -273,16 +270,16 @@ int main ()
         if (IsKeyPressed(KEY_ENTER)) {buttonPressed = selectedButton;}
         
         if (buttonPressed == 0) {
-            if (mode_more_tools) {rules = readRules(rulesFound, neighboursMode); mouseReleased = false;}
-            else {mode_auto = !mode_auto; mouseReleased = false;}
+            if (mode_more_tools) {rules = readRules(rulesFound, neighboursMode);}
+            else {mode_auto = !mode_auto;}
         }
         else if (buttonPressed == 1) {
-            if (mode_auto) {speed = std::max(0.5f, speed/2); mouseReleased = false;}
-            else {update(cell, rules, neighboursMode); mouseReleased = false;}
+            if (mode_auto) {speed = std::max(0.5f, speed/2);}
+            else {update(cell, rules, neighboursMode);}
         }
         else if (buttonPressed == 2) {
-            if (mode_auto) {speed = std::min(16.0f, speed*2); mouseReleased = false;}
-            else {for (int i = 0; i < 10; i++) {update(cell, rules, neighboursMode); mouseReleased = false;}}
+            if (mode_auto) {speed = std::min(16.0f, speed*2);}
+            else {for (int i = 0; i < 10; i++) {update(cell, rules, neighboursMode);}}
         }
         else if (buttonPressed == 3) {mode_more_tools = !mode_more_tools;}
 
