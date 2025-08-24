@@ -1,7 +1,7 @@
 # Cellular
 C++ | Raylib | cellular automata  
 🚧 Development started: Jul 30, 2025  
-an upcoming project about cellular automata  
+🌟 Features: define rules for cellular automata, update cells manually or automatically, change the rules while the program is running  
 
 ## Defining rules
 Rules need to be put in `rules.txt` file in the same directory as the executable. Each rule should be in a new line.  
