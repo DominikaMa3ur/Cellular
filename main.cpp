@@ -23,9 +23,16 @@ class Button {
         bool isPressed() {return (isInside() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT));}
         void select(bool selected) {isSelected = selected;}
         void draw() {
-            if ((isInside() && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) || isSelected)
+            if ((isInside() && IsMouseButtonDown(MOUSE_BUTTON_LEFT)))
                 {
                     DrawRectangleRounded(rect,0.1,1,GREEN);
+                    DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
+                    drawButtonText();
+                }
+            else if (isSelected)
+                {
+                    DrawRectangleRoundedLinesEx(rect,0.1,1,3,WHITE);                    
+                    DrawRectangleRounded(rect,0.1,1,BLUE);
                     DrawRectangleRoundedLinesEx(rect,0.1,1,2,BLACK);
                     drawButtonText();
                 }
@@ -173,10 +180,16 @@ std::vector<RULE2> readRules(bool &rulesFound, int &neighbours)
     std::vector<RULE2> rules;    
     std::ifstream file("rules.txt");
     std::string line;
+    int GRID_SIZE = false; // the next line is the grid size
     if (file.is_open()) {
         while (std::getline(file,line)) {
             std::stringstream stream(line);
             RULE2 i;
+            if (GRID_SIZE) {
+                GRID_SIZE = false;
+                int cx, cy;
+                if (stream >> cx) {if (stream >> cy) {CELLS_X = cx; CELLS_Y = cy; continue;}}
+            }
             if (stream >> i.a)
             {
                 if (stream >> i.b)
@@ -188,6 +201,7 @@ std::vector<RULE2> readRules(bool &rulesFound, int &neighbours)
                     if (line.find("8") != std::string::npos) {neighbours = 8;}                    
                     else if (line.find("4") != std::string::npos) {neighbours = 4;}
                 }
+                else if (line.find("grid") != std::string::npos) {GRID_SIZE = true;}
             }
         }
     }
@@ -196,15 +210,24 @@ std::vector<RULE2> readRules(bool &rulesFound, int &neighbours)
     return rules;
 }
 
+std::vector<std::vector<int>> createGrid() {
+    std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
+    cell[8][6] = 1;
+    cell[8][7] = 1;
+    cell[8][8] = 1;
+    return cell;
+}
+
 int main ()
 {
-    std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
+    bool rulesFound = true;
+    int neighboursMode = 8;    
+    std::vector<RULE2> rules = readRules(rulesFound, neighboursMode);    
+    std::vector<std::vector<int>> cell = createGrid();
     const float updateTime = 1.25;
     const int toolsHeight = 32;
     float speed = 1.0;
     float sinceUpdate = 0;
-    bool rulesFound = true;
-    int neighboursMode = 8;
     bool mode_auto = false;
     bool mode_more_tools = false;
     
@@ -238,12 +261,6 @@ int main ()
     SetWindowMinSize(640,64);
     SetTargetFPS(60);
 
-    cell[32][33] = 1;
-    cell[32][32] = 1;
-    cell[32][34] = 1;
-
-    std::vector<RULE2> rules = readRules(rulesFound, neighboursMode);
-
 	while (!WindowShouldClose())
 	{
         int buttonPressed = -1;
@@ -270,7 +287,7 @@ int main ()
         if (IsKeyPressed(KEY_ENTER)) {buttonPressed = selectedButton;}
         
         if (buttonPressed == 0) {
-            if (mode_more_tools) {rules = readRules(rulesFound, neighboursMode);}
+            if (mode_more_tools) {int last_x = CELLS_X; int last_y = CELLS_Y; rules = readRules(rulesFound, neighboursMode); if (last_x != CELLS_X || last_y != CELLS_Y) {cell = createGrid();}}
             else {mode_auto = !mode_auto;}
         }
         else if (buttonPressed == 1) {
