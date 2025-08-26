@@ -66,7 +66,7 @@ class numberInput {
         void focus(bool f=true) {focused = f; new_focus = f;}
         bool isFocusNew() {if (new_focus) {new_focus = false; return true;} else return false;}
         bool clickedInside() {return (CheckCollisionPointRec(GetMousePosition(), rect) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT));}
-        void set_pos(Vector2 new_pos) {pos = new_pos; rect = {pos.x,pos.y,72,48};}
+        void set_pos(Vector2 new_pos) {pos = new_pos; rect = {pos.x,pos.y,96,48};}
         void update() {
             if (clickedInside()) {focus();}
             if (focused) {
@@ -80,7 +80,7 @@ class numberInput {
             const char* text = std::to_string(value).c_str();
             DrawRectangleRec(rect,WHITE);
             DrawRectangleLinesEx(rect,1,BLACK);
-            DrawText(text, pos.x+16, pos.y+16, 20, BLACK);
+            DrawText(text, pos.x+16, pos.y+16, 32, BLACK);
     }
     int get_value() {return value;}
 };
@@ -245,9 +245,11 @@ std::vector<RULE2> readRules(bool &rulesFound, int &neighbours)
 
 std::vector<std::vector<int>> createGrid() {
     std::vector<std::vector<int>> cell(CELLS_X, std::vector<int>(CELLS_Y,0));
-    cell[8][6] = 1;
-    cell[8][7] = 1;
-    cell[8][8] = 1;
+    if (CELLS_X >= 9 && CELLS_Y >= 9) {
+        cell[8][6] = 1;
+        cell[8][7] = 1;
+        cell[8][8] = 1;
+    }
     return cell;
 }
 
@@ -255,7 +257,7 @@ int main ()
 {
     bool gridSize = true;    
     bool rulesFound = true;
-    int neighboursMode = 8;    
+    int neighboursMode = 8;
     std::vector<RULE2> rules = readRules(rulesFound, neighboursMode);    
     std::vector<std::vector<int>> cell = createGrid();
     const float updateTime = 1.25;
@@ -265,10 +267,10 @@ int main ()
     bool mode_auto = false;
     bool mode_more_tools = false;
 
-    numberInput widthInput(32,32);
-    numberInput heightInput(128,32);
-    Button gridButton(256, 32, 128, 32, "OK");
-    Button gridButton2(32, 96, 352, 32, "Use size from file or default");
+    numberInput widthInput(32,82);
+    numberInput heightInput(144,82);
+    Button gridButton(256, 82, 128, 48, "OK");
+    Button gridButton2(32, 146, 352, 48, "Use size from file or default");
     
     std::vector<Button> tools_auto = {
     Button(16,0,128,32, "manual"),
@@ -311,6 +313,7 @@ int main ()
             heightInput.update();
             gridButton.draw();
             gridButton2.draw();
+            DrawText("Grid size:", 32, 32, 32, BLACK);
             if (gridButton.isPressed() && widthInput.get_value() != 0 && heightInput.get_value() != 0) {
                 CELLS_X = widthInput.get_value();
                 CELLS_Y = heightInput.get_value();
