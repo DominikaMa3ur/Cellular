@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 
+Color COLORS[2] = {Color{128,128,128,255},Color{192,192,192,255}};
+
 class Button {
     private:
         Rectangle rect;
@@ -78,7 +80,8 @@ class numberInput {
                 if (IsKeyPressed(KEY_BACKSPACE)) {value = value/10;}
             }
             const char* text = std::to_string(value).c_str();
-            DrawRectangleRec(rect,WHITE);
+            if (focused) DrawRectangleRec(rect,GREEN);
+            else DrawRectangleRec(rect,WHITE);
             DrawRectangleLinesEx(rect,1,BLACK);
             DrawText(text, pos.x+16, pos.y+16, 32, BLACK);
     }
@@ -89,8 +92,6 @@ const int EDGE_NEIGHBOUR = INT_MAX;
 
 int CELLS_X = 64;
 int CELLS_Y = 64;
-
-Color COLORS[2] = {Color{128,128,128,255},Color{192,192,192,255}};
 
 struct NEIGHBOURS8 {
     int LT;
@@ -270,7 +271,7 @@ int main ()
     numberInput widthInput(32,82);
     numberInput heightInput(144,82);
     Button gridButton(256, 82, 128, 48, "OK");
-    Button gridButton2(32, 146, 352, 48, "Use size from file or default");
+    Button gridButton2(32, 146, 352, 48, "Load from file or default");
     
     std::vector<Button> tools_auto = {
     Button(16,0,128,32, "manual"),
@@ -306,14 +307,14 @@ int main ()
 	{
         if (gridSize) {
             BeginDrawing();
-		    ClearBackground(BLUE);
+		    ClearBackground(COLORS[0]);
             if (heightInput.isFocusNew()) {widthInput.focus(false);}
             if (widthInput.isFocusNew()) {heightInput.focus(false);}
             widthInput.update();
             heightInput.update();
             gridButton.draw();
             gridButton2.draw();
-            DrawText("Grid size:", 32, 32, 32, BLACK);
+            DrawText("Grid size (width, height):", 32, 32, 32, BLACK);
             if (gridButton.isPressed() && widthInput.get_value() != 0 && heightInput.get_value() != 0) {
                 CELLS_X = widthInput.get_value();
                 CELLS_Y = heightInput.get_value();
