@@ -52,6 +52,24 @@ class Button {
     
 };
 
+class numberInput {
+    private:
+        int value = 0;
+        bool focused = true;
+    public:
+        void update() {
+            if (!focused) {return;}
+            int c = GetCharPressed();            
+            if (c <= '9' and c >= '0') {
+                value = value*10 + (c-'0');
+            }
+            if (IsKeyPressed(KEY_BACKSPACE)) {value = value/10;}
+            const char* text = std::to_string(value).c_str();
+            DrawText(text, 20, 20, 20, BLACK);
+    }
+    int get_value() {return value;}
+};
+
 const int EDGE_NEIGHBOUR = INT_MAX;
 
 int CELLS_X = 64;
@@ -230,6 +248,8 @@ int main ()
     float sinceUpdate = 0;
     bool mode_auto = false;
     bool mode_more_tools = false;
+    numberInput widthInput;
+    numberInput heightInput;
     
     std::vector<Button> tools_auto = {
     Button(16,0,128,32, "manual"),
@@ -314,6 +334,8 @@ int main ()
         }
         for (int i = 0; i < 4; i++) {(*active_tools)[i].draw();}
 		if (!rulesFound) {DrawText("[!] Rules not found! make sure the file is named rules.txt", 16, 48, 20, BLACK);}
+        widthInput.update();
+        heightInput.update();
 		EndDrawing();
 	}
 	CloseWindow();
