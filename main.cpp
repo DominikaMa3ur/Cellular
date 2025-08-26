@@ -54,15 +54,20 @@ class Button {
 
 class numberInput {
     private:
+        Rectangle rect = {pos.x,pos.y,32,32};
         int value = 0;
         bool focused = false;
+        bool new_focus = false;
         Vector2 pos = {0,0};
     public:
         numberInput(float x, float y)
-            {pos = Vector2{x,y};}
-        void focus(bool f=true) {focused = f;}
-        void set_pos(Vector2 new_pos) {pos = new_pos;}
+            {pos = Vector2{x,y}; set_pos(pos);}
+        void focus(bool f=true) {focused = f; new_focus = f;}
+        bool isFocusNew() {if (new_focus) {new_focus = false; return true;} else return false;}
+        bool clickedInside() {return (CheckCollisionPointRec(GetMousePosition(), rect) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT));}
+        void set_pos(Vector2 new_pos) {pos = new_pos; rect = {pos.x,pos.y,160,80};}
         void update() {
+            if (clickedInside()) {focus();}
             if (focused) {
                 int c = GetCharPressed();            
                 if (c <= '9' and c >= '0') {
@@ -244,6 +249,7 @@ std::vector<std::vector<int>> createGrid() {
 
 int main ()
 {
+    bool gridSize = true;    
     bool rulesFound = true;
     int neighboursMode = 8;    
     std::vector<RULE2> rules = readRules(rulesFound, neighboursMode);    
@@ -254,8 +260,11 @@ int main ()
     float sinceUpdate = 0;
     bool mode_auto = false;
     bool mode_more_tools = false;
+
     numberInput widthInput(32,32);
     numberInput heightInput(128,32);
+    Button gridButton(256, 32, 128, 32, "OK");
+    Button gridButton2(256, 96, 128, 32, "Use size from file or default");
     
     std::vector<Button> tools_auto = {
     Button(16,0,128,32, "manual"),
@@ -274,7 +283,7 @@ int main ()
     std::vector<Button> more_tools = {
     Button(16,0,128,32, "reload rules"),
     Button(176,0,128,32, "soon"),
-    Button(336,0,128,32, "soon"),
+    Button(336,0,128,32, "colors"),
     Button(496,0,128,32, "back"),
     };
 
@@ -287,10 +296,26 @@ int main ()
     SetWindowMinSize(640,64);
     SetTargetFPS(60);
 
-    widthInput.focus();
-
 	while (!WindowShouldClose())
 	{
+        if (gridSize) {
+            BeginDrawing();
+		    ClearBackground(BLUE);
+            if (heightInput.isFocusNew()) {widthInput.focus(false);}
+            if (widthInput.isFocusNew()) {heightInput.focus(false);}
+            widthInput.update();
+            heightInput.update();
+            gridButton.draw();
+            gridButton2.draw();
+            if (gridButton.isPressed()) {
+                CELLS_X = widthInput.get_value();
+                CELLS_Y = heightInput.get_value();
+                cell = createGrid();
+                gridSize = false;}
+            if (gridButton2.isPressed()) {gridSize = false;}
+            EndDrawing();
+            continue;
+        }        
         int buttonPressed = -1;
         if (mode_more_tools) active_tools = &more_tools;
         else if (mode_auto) active_tools = &tools_auto;
@@ -342,8 +367,6 @@ int main ()
         }
         for (int i = 0; i < 4; i++) {(*active_tools)[i].draw();}
 		if (!rulesFound) {DrawText("[!] Rules not found! make sure the file is named rules.txt", 16, 48, 20, BLACK);}
-        widthInput.update();
-        heightInput.update();
 		EndDrawing();
 	}
 	CloseWindow();
