@@ -55,17 +55,23 @@ class Button {
 class numberInput {
     private:
         int value = 0;
-        bool focused = true;
+        bool focused = false;
+        Vector2 pos = {0,0};
     public:
+        numberInput(float x, float y)
+            {pos = Vector2{x,y};}
+        void focus(bool f=true) {focused = f;}
+        void set_pos(Vector2 new_pos) {pos = new_pos;}
         void update() {
-            if (!focused) {return;}
-            int c = GetCharPressed();            
-            if (c <= '9' and c >= '0') {
-                value = value*10 + (c-'0');
+            if (focused) {
+                int c = GetCharPressed();            
+                if (c <= '9' and c >= '0') {
+                    value = value*10 + (c-'0');
+                }
+                if (IsKeyPressed(KEY_BACKSPACE)) {value = value/10;}
             }
-            if (IsKeyPressed(KEY_BACKSPACE)) {value = value/10;}
             const char* text = std::to_string(value).c_str();
-            DrawText(text, 20, 20, 20, BLACK);
+            DrawText(text, pos.x, pos.y, 20, BLACK);
     }
     int get_value() {return value;}
 };
@@ -248,8 +254,8 @@ int main ()
     float sinceUpdate = 0;
     bool mode_auto = false;
     bool mode_more_tools = false;
-    numberInput widthInput;
-    numberInput heightInput;
+    numberInput widthInput(32,32);
+    numberInput heightInput(128,32);
     
     std::vector<Button> tools_auto = {
     Button(16,0,128,32, "manual"),
@@ -280,6 +286,8 @@ int main ()
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetWindowMinSize(640,64);
     SetTargetFPS(60);
+
+    widthInput.focus();
 
 	while (!WindowShouldClose())
 	{
